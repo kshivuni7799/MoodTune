@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
@@ -12,6 +12,10 @@ const nextConfig = {
       zlib: false,
       util: false,
     };
+    
+    if (isServer) {
+      config.externals.push('youtube-sr');
+    }
     
     // Ensure proper module resolution
     config.resolve.alias = {

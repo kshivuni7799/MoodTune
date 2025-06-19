@@ -1,169 +1,101 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { searchSongs, YouTubeSong } from '../services/youtubeService'
+import { useState, useEffect, useRef } from 'react'
+import YouTube from 'react-youtube';
+import { searchSongs, Song } from '@/services/youtubeService'
 
 interface MusicPlayerProps {
   mood: string
   intensity: number
+  shouldSkipSong: boolean
 }
 
-export default function MusicPlayer({ mood, intensity }: MusicPlayerProps) {
-  const [songs, setSongs] = useState<YouTubeSong[]>([])
+export default function MusicPlayer({ mood, intensity, shouldSkipSong }: MusicPlayerProps) {
+  const [currentSong, setCurrentSong] = useState<Song | null>(null)
+  const [songQueue, setSongQueue] = useState<Song[]>([])
   const [currentSongIndex, setCurrentSongIndex] = useState(0)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const currentSong = songs[currentSongIndex]
+  const [songTitle, setSongTitle] = useState('Select a mood to start');
+  const playerRef = useRef<any>(null);
+  const nextSongTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const fetchSongs = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        console.log('Fetching songs for mood:', mood); // Debug log
-        const newSongs = await searchSongs({ mood })
-        console.log('Fetched songs:', newSongs); // Debug log
-        if (newSongs.length > 0) {
-          setSongs(newSongs)
-          setCurrentSongIndex(0)
-        } else {
-          setError('No songs found for this mood. Please try again.')
+    return () => {
+      if (nextSongTimerRef.current) {
+        clearTimeout(nextSongTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    async function fetchSongs() {
+      if (mood) {
+        const songs = await searchSongs({ mood })
+        setSongQueue(songs)
+        setCurrentSongIndex(0)
+        setCurrentSong(songs[0] || null)
+        if (songs[0]) {
+          setSongTitle(songs[0].title);
         }
-      } catch (err) {
-        console.error('Error in fetchSongs:', err);
-        setError(
-          err instanceof Error 
-            ? err.message 
-            : 'Failed to load songs. Please check your internet connection and YouTube API key.'
-        )
-      } finally {
-        setIsLoading(false)
       }
     }
-
     fetchSongs()
   }, [mood])
 
-  const handleNextSong = async () => {
-    if (currentSongIndex === songs.length - 1) {
-      try {
-        setIsLoading(true)
-        const newSongs = await searchSongs({ mood })
-        if (newSongs.length > 0) {
-          setSongs(newSongs)
-          setCurrentSongIndex(0)
-        } else {
-          setError('No more songs available. Please try again.')
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error 
-            ? err.message 
-            : 'Failed to load new songs. Please try again.'
-        )
-      } finally {
-        setIsLoading(false)
-      }
-    } else {
-      setCurrentSongIndex(prev => prev + 1)
+  useEffect(() => {
+    if (shouldSkipSong) {
+      handleNext()
     }
-    setIsPlaying(true)
-  }
+  }, [shouldSkipSong])
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-gray-600">Loading songs...</p>
-      </div>
-    )
-  }
+  const handleNext = () => {
+    if (songQueue.length > 0) {
+      if (nextSongTimerRef.current) {
+        clearTimeout(nextSongTimerRef.current);
+      }
+      nextSongTimerRef.current = setTimeout(() => {
+        const nextIndex = (currentSongIndex + 1) % songQueue.length;
+        setCurrentSongIndex(nextIndex);
+        setCurrentSong(songQueue[nextIndex]);
+        setSongTitle(songQueue[nextIndex].title);
+      }, 10000); // 10-second pause
+    }
+  };
 
-  if (error) {
-    return (
-      <div className="text-center p-4">
-        <p className="text-red-500 mb-4">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    )
-  }
-
-  if (!currentSong) {
-    return (
-      <div className="text-center p-4">
-        <p className="text-gray-600 mb-4">No songs available for the current mood.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Refresh
-        </button>
-      </div>
-    )
-  }
+  const onPlayerReady = (event: any) => {
+    playerRef.current = event.target;
+    event.target.playVideo();
+  };
 
   return (
-    <div className="music-player bg-white rounded-lg shadow-lg p-4 max-w-2xl mx-auto">
-      <div className="mb-4">
-        <h3 className="text-xl font-semibold text-gray-800">{currentSong.title}</h3>
-        <p className="text-gray-600">{currentSong.artist}</p>
-        <p className="text-sm text-gray-500">Current Mood: {mood}</p>
-      </div>
-
-      <div className="aspect-video w-full mb-4">
-        <iframe
-          width="100%"
-          height="100%"
-          src={`https://www.youtube.com/embed/${currentSong.videoId}?autoplay=${isPlaying ? 1 : 0}`}
-          title={currentSong.title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="rounded-lg"
-        ></iframe>
-      </div>
-
-      <div className="flex justify-between items-center">
-        <button
-          onClick={() => setIsPlaying(!isPlaying)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          {isPlaying ? 'Pause' : 'Play'}
-        </button>
-        <button
-          onClick={handleNextSong}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Next Song
-        </button>
-      </div>
-
-      {songs.length > 1 && (
-        <div className="mt-4">
-          <p className="text-sm text-gray-500 mb-2">Up Next:</p>
-          <div className="space-y-2">
-            {songs.slice(currentSongIndex + 1, currentSongIndex + 3).map((song, index) => (
-              <div key={song.videoId} className="flex items-center space-x-2">
-                <img
-                  src={song.thumbnail}
-                  alt={song.title}
-                  className="w-16 h-12 object-cover rounded"
-                />
-                <div className="flex-1 truncate">
-                  <p className="text-sm font-medium truncate">{song.title}</p>
-                  <p className="text-xs text-gray-500 truncate">{song.artist}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="flex flex-col space-y-6">
+      {/* Song Info */}
+      <div className="text-center">
+        <div className="w-full aspect-video mx-auto mb-4 rounded-lg bg-black flex items-center justify-center overflow-hidden relative">
+          {currentSong ? (
+            <YouTube
+              key={currentSong.id}
+              videoId={currentSong.id}
+              opts={{
+                width: '100%',
+                height: '100%',
+                playerVars: {
+                  autoplay: 1,
+                  controls: 0,
+                  modestbranding: 1,
+                  rel: 0,
+                },
+              }}
+              onReady={onPlayerReady}
+              onEnd={handleNext}
+              className="w-full h-full"
+            />
+          ) : (
+            <div className="text-4xl">🎵</div>
+          )}
         </div>
-      )}
+        <h3 className="text-xl font-semibold mb-1">{songTitle || 'Select a mood'}</h3>
+        <p className="text-blue-200/60 text-sm">{currentSong ? `By ${currentSong.artist}` : (mood ? `Based on your ${mood} mood` : '')}</p>
+      </div>
     </div>
   )
 } 

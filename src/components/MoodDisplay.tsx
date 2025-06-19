@@ -1,28 +1,28 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 interface MoodDisplayProps {
   mood: string
   intensity: number
 }
 
-const moodEmojis: { [key: string]: string } = {
+const moodEmojis: Record<string, string> = {
   happy: '😊',
   sad: '😢',
   angry: '😠',
-  neutral: '😐',
-  surprised: '😮',
   fearful: '😨',
-  disgusted: '🤢'
+  neutral: '😐',
+  surprised: '😲'
 }
 
-const moodColors: { [key: string]: string } = {
-  happy: 'bg-happy',
-  sad: 'bg-sad',
-  angry: 'bg-angry',
-  neutral: 'bg-neutral',
-  surprised: 'bg-purple-400',
-  fearful: 'bg-indigo-400',
-  disgusted: 'bg-green-400'
+const moodColors: Record<string, string> = {
+  happy: 'from-yellow-400 to-orange-400',
+  sad: 'from-blue-400 to-indigo-400',
+  angry: 'from-red-400 to-pink-400',
+  fearful: 'from-purple-400 to-indigo-400',
+  neutral: 'from-gray-400 to-blue-400',
+  surprised: 'from-pink-400 to-purple-400'
 }
 
 const moodDescriptions: { [key: string]: string } = {
@@ -36,43 +36,32 @@ const moodDescriptions: { [key: string]: string } = {
 }
 
 export default function MoodDisplay({ mood, intensity }: MoodDisplayProps) {
-  const emoji = moodEmojis[mood] || '😐'
-  const colorClass = moodColors[mood] || 'bg-neutral'
-  const description = moodDescriptions[mood] || 'Reading your mood...'
+  const emoji = moodEmojis[mood.toLowerCase()] || '😐'
+  const colorGradient = moodColors[mood.toLowerCase()] || 'from-gray-400 to-blue-400'
   const intensityPercentage = Math.round(intensity * 100)
 
   return (
-    <div className="mood-card">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <div className="text-6xl mr-4 animate-bounce">{emoji}</div>
-          <div>
-            <h2 className="text-2xl font-semibold capitalize">{mood}</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">{description}</p>
-          </div>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-400">Intensity</span>
-          <span className="font-medium">{intensityPercentage}%</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
-          <div 
-            className={`h-full rounded-full ${colorClass} transition-all duration-500 ease-in-out animate-mood-pulse`}
-            style={{ width: `${intensityPercentage}%` }}
-          ></div>
-        </div>
+    <div className="flex flex-col items-center space-y-6">
+      {/* Emoji Display */}
+      <div className={`text-7xl animate-bounce-slow p-6 rounded-full bg-gradient-to-r ${colorGradient} shadow-lg`}>
+        {emoji}
       </div>
 
-      <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-        <p className="text-center italic">
-          {intensityPercentage < 20 && 'Expression is very subtle...'}
-          {intensityPercentage >= 20 && intensityPercentage < 50 && 'Expression is moderate'}
-          {intensityPercentage >= 50 && intensityPercentage < 80 && 'Expression is quite clear'}
-          {intensityPercentage >= 80 && 'Expression is very strong!'}
-        </p>
+      {/* Mood Text */}
+      <div className="text-center">
+        <h3 className="text-2xl font-semibold capitalize mb-2">
+          {mood}
+        </h3>
+        <div className="flex items-center justify-center space-x-2">
+          <div className="text-sm text-blue-200">Intensity:</div>
+          <div className="w-32 h-2 bg-white/20 rounded-full overflow-hidden">
+            <div 
+              className={`h-full bg-gradient-to-r ${colorGradient} transition-all duration-500`}
+              style={{ width: `${intensityPercentage}%` }}
+            />
+          </div>
+          <div className="text-sm text-blue-200">{intensityPercentage}%</div>
+        </div>
       </div>
     </div>
   )

@@ -16,6 +16,13 @@
   }
 }
 
+/* Ensure our app's styles are isolated */
+.app-container {
+  isolation: isolate;
+  position: relative;
+  z-index: 1;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
